@@ -1,0 +1,60 @@
+# -------------------
+# Python / Django
+# -------------------
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+env/
+venv/
+# .env
+*.sqlite3
+db.sqlite3
+*.log
+*.pot
+*.py[cod]
+__pycache__/
+
+# Django static / media
+/staticfiles/
+/media/
+
+# Django migrations (можно закомментировать, если хочешь хранить)
+/**/migrations/*.pyc
+**/migrations/__pycache__/
+**/migrations/*.py~
+**/migrations/*.swp
+**/migrations/*.orig
+
+# -------------------
+# Node / Next.js
+# -------------------
+node_modules/
+.next/
+out/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files
+# .env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env
+
+# -------------------
+# IDE / Editor
+# -------------------
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+*.swp
+
+# -------------------
+# Docker
+# -------------------
+**/docker-compose.override.yml
+**/.docker/
