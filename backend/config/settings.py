@@ -44,6 +44,8 @@ INSTALLED_APPS = [
     "apps.tenants.apps.TenantsConfig", ###роли
     "apps.accounts.apps.AccountsConfig", ###аккаунт
     "apps.branch.apps.BranchConfig", ###филиал
+    "apps.employee.apps.EmployeeConfig", ###сотрудники
+    "apps.services.apps.ServicesConfig", ###услуги салона
 ]
 
 MIDDLEWARE = [
