@@ -15,3 +15,6 @@ accounts
 tenants
 ├── Salon                       
 └── SalonMembership 
+
+3 Branch 
+Branch — конкретное место/филиал этого бизнеса.
