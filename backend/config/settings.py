@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "apps.services.apps.ServicesConfig", ###услуги салона
     "apps.schedules.apps.SchedulesConfig", ###расписание
     "apps.clients.apps.ClientsConfig", ###клиенты
+    "apps.appointments.apps.AppointmentsConfig", ###записи
 ]
 
 MIDDLEWARE = [
