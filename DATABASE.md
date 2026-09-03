@@ -1,7 +1,7 @@
 accounts
 └── User
 
-tenants
+tenants 
 ├── Salon
 ├── Role
 └── SalonMembership

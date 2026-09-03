@@ -1,6 +1,7 @@
 import uuid
 from datetime import time
 
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.test import TestCase
 
@@ -18,6 +19,7 @@ class ScheduleCreateTest(TestCase):
 
     def test_create(self):
         sched = Schedule.objects.create(
+            salon=self.salon,
             employee=self.employee,
             branch=self.branch,
             weekday=Schedule.MONDAY,
@@ -33,7 +35,7 @@ class ScheduleCreateTest(TestCase):
 
     def test_id_is_uuid(self):
         sched = Schedule.objects.create(
-            employee=self.employee, branch=self.branch,
+            salon=self.salon, employee=self.employee, branch=self.branch,
             weekday=0, start_time=time(9, 0), end_time=time(18, 0),
         )
         self.assertIsInstance(sched.id, uuid.UUID)
@@ -44,7 +46,7 @@ class ScheduleCreateTest(TestCase):
 
     def test_str(self):
         sched = Schedule.objects.create(
-            employee=self.employee, branch=self.branch,
+            salon=self.salon, employee=self.employee, branch=self.branch,
             weekday=Schedule.MONDAY, start_time=time(9, 0), end_time=time(18, 0),
         )
         self.assertEqual(str(sched), "Ivan — Hub — Downtown — Monday")
@@ -58,7 +60,7 @@ class ScheduleFieldMetaTest(TestCase):
 
     def _make(self, **kw):
         defaults = dict(
-            employee=self.employee, branch=self.branch,
+            salon=self.salon, employee=self.employee, branch=self.branch,
             weekday=0, start_time=time(9, 0), end_time=time(18, 0),
         )
         defaults.update(kw)
@@ -130,6 +132,7 @@ class ScheduleRelationsTest(TestCase):
 
     def _make(self, employee=None, branch=None, weekday=0):
         return Schedule.objects.create(
+            salon=self.salon,
             employee=employee or self.employee,
             branch=branch or self.branch,
             weekday=weekday,
@@ -140,14 +143,14 @@ class ScheduleRelationsTest(TestCase):
     def test_employee_required(self):
         with self.assertRaises(IntegrityError):
             Schedule.objects.create(
-                employee=None, branch=self.branch,
+                salon=self.salon, employee=None, branch=self.branch,
                 weekday=0, start_time=time(9, 0), end_time=time(18, 0),
             )
 
     def test_branch_required(self):
         with self.assertRaises(IntegrityError):
             Schedule.objects.create(
-                employee=self.employee, branch=None,
+                salon=self.salon, employee=self.employee, branch=None,
                 weekday=0, start_time=time(9, 0), end_time=time(18, 0),
             )
 
@@ -185,6 +188,7 @@ class ScheduleUniqueConstraintTest(TestCase):
 
     def _make(self, employee=None, branch=None, weekday=0):
         return Schedule.objects.create(
+            salon=self.salon,
             employee=employee or self.employee,
             branch=branch or self.branch,
             weekday=weekday,
@@ -223,7 +227,7 @@ class ScheduleTimestampsTest(TestCase):
         self.employee = Employee.objects.create(salon=self.salon, first_name="Ivan")
         self.branch = Branch.objects.create(salon=self.salon, name="B")
         self.sched = Schedule.objects.create(
-            employee=self.employee, branch=self.branch,
+            salon=self.salon, employee=self.employee, branch=self.branch,
             weekday=0, start_time=time(9, 0), end_time=time(18, 0),
         )
 
@@ -254,7 +258,7 @@ class ScheduleBreakCreateTest(TestCase):
         self.employee = Employee.objects.create(salon=self.salon, first_name="Ivan")
         self.branch = Branch.objects.create(salon=self.salon, name="B")
         self.schedule = Schedule.objects.create(
-            employee=self.employee, branch=self.branch,
+            salon=self.salon, employee=self.employee, branch=self.branch,
             weekday=0, start_time=time(9, 0), end_time=time(18, 0),
         )
 
@@ -314,7 +318,7 @@ class ScheduleBreakRelationsTest(TestCase):
         self.employee = Employee.objects.create(salon=self.salon, first_name="Ivan")
         self.branch = Branch.objects.create(salon=self.salon, name="B")
         self.schedule = Schedule.objects.create(
-            employee=self.employee, branch=self.branch,
+            salon=self.salon, employee=self.employee, branch=self.branch,
             weekday=0, start_time=time(9, 0), end_time=time(18, 0),
         )
 
@@ -349,7 +353,7 @@ class ScheduleBreakTimestampsTest(TestCase):
         self.employee = Employee.objects.create(salon=self.salon, first_name="Ivan")
         self.branch = Branch.objects.create(salon=self.salon, name="B")
         self.schedule = Schedule.objects.create(
-            employee=self.employee, branch=self.branch,
+            salon=self.salon, employee=self.employee, branch=self.branch,
             weekday=0, start_time=time(9, 0), end_time=time(18, 0),
         )
         self.brk = ScheduleBreak.objects.create(
@@ -375,3 +379,86 @@ class ScheduleBreakTimestampsTest(TestCase):
         self.brk.save()
         self.brk.refresh_from_db()
         self.assertGreaterEqual(self.brk.updated_at, old)
+
+
+class ScheduleTenantIsolationTest(TestCase):
+    def setUp(self):
+        self.salon_a = Salon.objects.create(name="Salon A", slug="salon-a")
+        self.salon_b = Salon.objects.create(name="Salon B", slug="salon-b")
+        self.employee_a = Employee.objects.create(salon=self.salon_a, first_name="Ivan")
+        self.employee_b = Employee.objects.create(salon=self.salon_b, first_name="Petr")
+        self.branch_a = Branch.objects.create(salon=self.salon_a, name="Branch A")
+        self.branch_b = Branch.objects.create(salon=self.salon_b, name="Branch B")
+
+    def test_employee_from_other_salon_rejected_by_clean(self):
+        sched = Schedule(
+            salon=self.salon_a,
+            employee=self.employee_b,
+            branch=self.branch_a,
+            weekday=0,
+            start_time=time(9, 0),
+            end_time=time(18, 0),
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            sched.full_clean()
+        self.assertIn("employee", ctx.exception.message_dict)
+
+    def test_branch_from_other_salon_rejected_by_clean(self):
+        sched = Schedule(
+            salon=self.salon_a,
+            employee=self.employee_a,
+            branch=self.branch_b,
+            weekday=0,
+            start_time=time(9, 0),
+            end_time=time(18, 0),
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            sched.full_clean()
+        self.assertIn("branch", ctx.exception.message_dict)
+
+    def test_both_wrong_rejected_by_clean(self):
+        sched = Schedule(
+            salon=self.salon_a,
+            employee=self.employee_b,
+            branch=self.branch_b,
+            weekday=0,
+            start_time=time(9, 0),
+            end_time=time(18, 0),
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            sched.full_clean()
+        self.assertIn("employee", ctx.exception.message_dict)
+        self.assertIn("branch", ctx.exception.message_dict)
+
+    def test_same_salon_passes_clean(self):
+        sched = Schedule(
+            salon=self.salon_a,
+            employee=self.employee_a,
+            branch=self.branch_a,
+            weekday=0,
+            start_time=time(9, 0),
+            end_time=time(18, 0),
+        )
+        sched.full_clean()
+
+    def test_cross_tenant_schedule_saved_without_clean(self):
+        sched = Schedule.objects.create(
+            salon=self.salon_a,
+            employee=self.employee_b,
+            branch=self.branch_b,
+            weekday=0,
+            start_time=time(9, 0),
+            end_time=time(18, 0),
+        )
+        self.assertIsNotNone(sched.id)
+
+    def test_salon_required_not_null(self):
+        with self.assertRaises(IntegrityError):
+            Schedule.objects.create(
+                salon=None,
+                employee=self.employee_a,
+                branch=self.branch_a,
+                weekday=0,
+                start_time=time(9, 0),
+                end_time=time(18, 0),
+            )

@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 import uuid
 
 from django.db import models
@@ -7,6 +8,8 @@ from apps.branch.models import Branch
 # pyrefly: ignore [missing-import]
 from apps.employee.models import Employee
 
+# pyrefly: ignore [missing-import]
+from apps.tenants.models import Salon
 
 class Schedule(models.Model):
     """
@@ -43,13 +46,19 @@ class Schedule(models.Model):
     employee = models.ForeignKey(
         Employee,
         on_delete=models.CASCADE,
-        related_name="schedules",
+        related_name="employee_schedules",
+    )
+
+    salon = models.ForeignKey(
+        Salon,
+        on_delete=models.CASCADE,
+        related_name="salon_schedules",
     )
 
     branch = models.ForeignKey(
         Branch,
         on_delete=models.CASCADE,
-        related_name="schedules",
+        related_name="branch_schedules",
     )
 
     weekday = models.PositiveSmallIntegerField(
@@ -72,6 +81,41 @@ class Schedule(models.Model):
         auto_now=True,
     )
 
+    def clean(self):
+        super().clean()
+        # Проверка 1: Employee принадлежит тому же Salon
+        if self.employee_id and self.salon_id:
+            if self.employee.salon_id != self.salon_id:
+                raise ValidationError({
+                    'employee': 'Employee belongs to a different salon than the schedule.'
+                })
+
+        # Проверка 2: Branch принадлежит тому же Salon
+        if self.branch_id and self.salon_id:
+            if self.branch.salon_id != self.salon_id:
+                raise ValidationError({
+                    'branch': 'Branch belongs to a different salon than the schedule.'
+                })
+
+        # Проверка 3: Employee и Branch между собой из одного Salon
+        if self.employee_id and self.branch_id:
+            if self.employee.salon_id != self.branch.salon_id:
+                raise ValidationError({
+                    'branch': 'Employee and Branch must belong to the same salon.'
+                })
+
+        if self.start_time and self.end_time and self.start_time >= self.end_time:
+            raise ValidationError({
+                'end_time': 'End time must be after start time.'
+            })
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.employee} — {self.branch} — {self.get_weekday_display()}"
+
     class Meta:
         db_table = "schedules"
 
@@ -82,12 +126,7 @@ class Schedule(models.Model):
             ),
         ]
 
-    def __str__(self):
-        return (
-            f"{self.employee} — "
-            f"{self.branch} — "
-            f"{self.get_weekday_display()}"
-        )
+ 
 
 
 class ScheduleBreak(models.Model):
@@ -123,6 +162,7 @@ class ScheduleBreak(models.Model):
         auto_now=True,
     )
 
+
     class Meta:
         db_table = "schedule_breaks"
 
@@ -131,3 +171,14 @@ class ScheduleBreak(models.Model):
             f"{self.schedule} — "
             f"{self.start_time} - {self.end_time}"
         )
+
+    def clean(self):
+        super().clean()
+        if self.start_time and self.end_time and self.start_time >= self.end_time:
+            raise ValidationError({
+                'end_time': 'Break end time must be after start time.'
+            })
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
