@@ -40,7 +40,8 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'django.contrib.staticfiles',  
+    'django.contrib.staticfiles', 
+    'rest_framework',###библиотека rest framework
     "apps.tenants.apps.TenantsConfig", ###роли
     "apps.accounts.apps.AccountsConfig", ###аккаунт
     "apps.branch.apps.BranchConfig", ###филиал
@@ -138,7 +139,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
+ROOT_URLCONF = 'config.urls'
 
 
 
